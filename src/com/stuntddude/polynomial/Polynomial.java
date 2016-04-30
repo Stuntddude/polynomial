@@ -1,9 +1,17 @@
 package com.stuntddude.polynomial;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import processing.core.PApplet;
 
 public final class Polynomial extends PApplet {
-	public static final Polynomial polynomial = new Polynomial();
+	public static final Polynomial context = new Polynomial();
+
+	public static final float scale = 20.f;
+
+	private final List<Node> nodes = new ArrayList<>();
+	private final List<Line> lines = new ArrayList<>();
 
 	@Override
 	public void settings() {
@@ -13,7 +21,13 @@ public final class Polynomial extends PApplet {
 
 	@Override
 	public void setup() {
-		frameRate(60);
+		float hy = height/scale/2, hx = width/scale/2;
+
+		for (int i = 0; i < 2; ++i) {
+			nodes.add(new Node(random(-hx, hx), random(-hy, hy)));
+			nodes.add(new Node(random(-hx, hx), random(-hy, hy)));
+			lines.add(new Line(nodes.get(i*2), nodes.get(i*2 + 1)));
+		}
 	}
 
 	@Override
@@ -25,7 +39,6 @@ public final class Polynomial extends PApplet {
 		//apply grid scaling
 		pushMatrix();
 		translate(width/2, height/2);
-		float scale = 20.f; //TODO: make scale dependent on window size
 		scale(scale, -scale);
 
 
@@ -59,6 +72,16 @@ public final class Polynomial extends PApplet {
 
 
 
+		//draw lines
+		for (Line line : lines)
+			line.draw();
+
+		//draw nodes
+		for (Node node : nodes)
+			node.draw();
+
+
+
 		//un-apply grid scaling
 		popMatrix();
 
@@ -67,7 +90,45 @@ public final class Polynomial extends PApplet {
 		noLoop();
 	}
 
+	private Node dragging = null;
+
+	@Override
+	public void mousePressed() {
+		for (Node node : nodes)
+			if (node.inside((mouseX - width/2.f)/scale, (-mouseY + height/2.f)/scale))
+				dragging = node;
+	}
+
+	@Override
+	public void mouseDragged() {
+		if (dragging != null) {
+			dragging.x = (mouseX - width/2.f)/scale;
+			dragging.y = (height/2.f - mouseY)/scale;
+			loop();
+
+			//move the node back into the window without changing its line's slope
+			float hy = height/scale/2, hx = width/scale/2;
+			if (dragging.x > hx || dragging.x < -hx || dragging.y > hy || dragging.y < -hy) {
+				Line line = lines.get(nodes.indexOf(dragging)/2);
+
+				if      (dragging.y >  hy && (line.at(hx) >  hy || line.at(-hx) >  hy)) //top edge
+					dragging.move(( hy - dragging.y)/line.slope(),  hy - dragging.y);
+				else if (dragging.y < -hy && (line.at(hx) < -hy || line.at(-hx) < -hy)) //bottom edge
+					dragging.move((-hy - dragging.y)/line.slope(), -hy - dragging.y);
+				else if (dragging.x >  hx) //right edge
+					dragging.move( hx - dragging.x, ( hx - dragging.x)*line.slope());
+				else if (dragging.x < -hx) //left edge
+					dragging.move(-hx - dragging.x, (-hx - dragging.x)*line.slope());
+			}
+		}
+	}
+
+	@Override
+	public void mouseReleased() {
+		dragging = null;
+	}
+
 	public static void main(String[] args) {
-		PApplet.runSketch(new String[] { Polynomial.class.getName() }, polynomial);
+		PApplet.runSketch(new String[] { Polynomial.class.getName() }, context);
 	}
 }
