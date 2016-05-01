@@ -8,10 +8,12 @@ import processing.core.PApplet;
 public final class Polynomial extends PApplet {
 	public static final Polynomial context = new Polynomial();
 
-	public static final float scale = 20.f;
+	public static final float scale = 25.f;
 
 	private final List<Node> nodes = new ArrayList<>();
 	private final List<Line> lines = new ArrayList<>();
+
+	private Button add, remove;
 
 	@Override
 	public void settings() {
@@ -28,20 +30,19 @@ public final class Polynomial extends PApplet {
 			nodes.add(new Node(random(-hx, hx), random(-hy, hy)));
 			lines.add(new Line(nodes.get(i*2), nodes.get(i*2 + 1)));
 		}
+
+		add = new Button(20, 20, 20, 20, "+");
+		remove = new Button(50, 20, 20, 20, "-");
 	}
 
 	@Override
 	public void draw() {
 		background(0xFFFFFFFF); //white
 
-
-
 		//apply grid scaling
 		pushMatrix();
 		translate(width/2, height/2);
 		scale(scale, -scale);
-
-
 
 		//draw grid
 		stroke(0xFF7F7F7F); //grey
@@ -70,32 +71,64 @@ public final class Polynomial extends PApplet {
 		triangle( hx, 0,  hx - b, a,  hx - b, -a); //right
 		triangle(-hx, 0, -hx + b, a, -hx + b, -a); //left
 
-
-
 		//draw lines
 		for (Line line : lines)
 			line.draw();
+
+		//draw function
+		stroke(0xFF000000); //black
+		strokeWeight(2/scale);
+
+		float step = 0.1f;
+		for (float f = -hx; f <= hx; f += step)
+			line(f, at(f), f + step, at(f + step));
 
 		//draw nodes
 		for (Node node : nodes)
 			node.draw();
 
-
-
 		//un-apply grid scaling
 		popMatrix();
 
-
+		//draw UI
+		add.draw();
+		remove.draw();
 
 		noLoop();
+	}
+
+	private float at(float x) {
+		float y = 1.0f;
+		for (int i = 0; i < lines.size(); ++i)
+			y *= lines.get(i).at(x);
+		return y;
 	}
 
 	private Node dragging = null;
 
 	@Override
 	public void mousePressed() {
+		if (add.contains(mouseX, mouseY)) {
+			float hy = height/scale/2, hx = width/scale/2;
+			nodes.add(new Node(random(-hx, hx), random(-hy, hy)));
+			nodes.add(new Node(random(-hx, hx), random(-hy, hy)));
+			lines.add(new Line(nodes.get(nodes.size() - 1), nodes.get(nodes.size() - 2)));
+			loop();
+			return;
+		}
+
+		if (remove.contains(mouseX, mouseY)) {
+			if (!lines.isEmpty()) {
+				nodes.remove(nodes.size() - 1);
+				nodes.remove(nodes.size() - 1);
+				lines.remove(lines.size() - 1);
+				loop();
+			}
+			return;
+		}
+
 		for (Node node : nodes)
-			if (node.inside((mouseX - width/2.f)/scale, (-mouseY + height/2.f)/scale))
+			if (node.contains((mouseX - width/2.f)/scale, (-mouseY + height/2.f)/scale))
 				dragging = node;
 	}
 
@@ -126,6 +159,18 @@ public final class Polynomial extends PApplet {
 	@Override
 	public void mouseReleased() {
 		dragging = null;
+	}
+
+	private boolean hovering;
+
+	@Override
+	public void mouseMoved() {
+		boolean hover = add.contains(mouseX, mouseY) || remove.contains(mouseX, mouseY);
+
+		if (hover != hovering) {
+			hovering = hover;
+			loop();
+		}
 	}
 
 	public static void main(String[] args) {
